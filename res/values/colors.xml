@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="matte_black">#121212</color>
+    <color name="matte_black_light">#1E1E1E</color>
+    <color name="deep_navy">#0D1B2A</color>
+    <color name="deep_navy_light">#1B263B</color>
+    <color name="emerald_green">#50C878</color>
+    <color name="red_action">#E63946</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_gray">#A0AAB2</color>
+    <color name="gold_coin">#FFD700</color>
+</resources>
