@@ -37,6 +37,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            perspective: 1000px; /* Crucial for 3D effects */
         }
 
         /* --- UI Screens --- */
@@ -128,6 +129,7 @@
             z-index: 10;
             background: #000;
             display: none;
+            perspective: 800px;
         }
 
         #video-feed {
@@ -147,7 +149,7 @@
             z-index: 11;
             transform: scaleX(-1);
             pointer-events: none;
-            opacity: 0.4;
+            opacity: 0.3;
         }
 
         #sender-overlay {
@@ -157,28 +159,39 @@
             z-index: 12;
         }
 
-        /* --- The Floating Image --- */
+        /* --- The Floating Image (Advanced State Handling) --- */
         .transfer-image {
             position: absolute;
             width: 240px;
             height: 320px;
             object-fit: cover;
-            border-radius: 4px;
+            border-radius: 8px;
             box-shadow: 0 30px 100px rgba(0,0,0,0.9), 0 0 20px rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
-            /* Initial position center */
             left: 50%;
             top: 50%;
             margin-left: -120px;
             margin-top: -160px;
-            transition: transform 0.1s ease-out, box-shadow 0.3s ease;
+            
+            /* CSS Variables for JS to update coordinates smoothly */
+            --tx: 0px;
+            --ty: 0px;
+            --s: 1; /* Scale */
+            --r: 0deg; /* Rotation */
+            
+            transform: translate3d(var(--tx), var(--ty), 0) scale(var(--s)) rotate(var(--r));
+            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
             will-change: transform;
         }
 
+        /* Tagda Squeeze Effect on Grab */
         .transfer-image.grabbed {
-            box-shadow: 0 50px 120px rgba(0,0,0,1), 0 0 40px rgba(255,255,255,0.3);
-            border-color: rgba(255,255,255,0.5);
-            transition: transform 0.05s linear; /* Faster tracking when held */
+            --s: 0.75 !important;
+            --r: -8deg !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,1), 0 0 50px rgba(255,255,255,0.4);
+            border-color: rgba(255,255,255,0.7);
+            /* Faster tracking when held */
+            transition: transform 0.05s linear, box-shadow 0.2s ease;
         }
 
         /* --- Receiver View --- */
@@ -191,23 +204,25 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            perspective: 1000px;
         }
 
-        /* --- Animations --- */
-        @keyframes throwOut {
-            0% { transform: translate3d(var(--tx), var(--ty), 0) scale(1.1); opacity: 1; filter: blur(0px); }
-            100% { transform: translate3d(var(--tx), -150vh, -1000px) scale(0); opacity: 0; filter: blur(40px); }
+        /* --- 3D Animations --- */
+        @keyframes shootIntoScreen {
+            0% { transform: translate3d(var(--tx), var(--ty), 0) scale(0.75) rotate(-8deg); opacity: 1; }
+            40% { transform: translate3d(var(--tx), var(--ty), -200px) scale(0.8) rotate(0deg); opacity: 0.8; }
+            100% { transform: translate3d(var(--tx), calc(var(--ty) - 300px), -1500px) scale(0); opacity: 0; filter: blur(30px); }
         }
 
-        @keyframes receiveIn {
-            0% { transform: translateY(800px) scale(0.2) rotateX(-30deg); opacity: 0; filter: blur(30px); }
-            60% { transform: translateY(-30px) scale(1.05) rotateX(0deg); opacity: 1; filter: blur(0px); }
-            80% { transform: translateY(10px) scale(0.98); }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
+        @keyframes explodeOutOfScreen {
+            0% { transform: translate3d(0, 500px, -1500px) scale(0.1) rotateX(45deg); opacity: 0; filter: blur(40px); }
+            50% { transform: translate3d(0, -50px, 100px) scale(1.1) rotateX(-10deg); opacity: 1; filter: blur(5px); }
+            80% { transform: translate3d(0, 20px, 0) scale(0.95) rotateX(5deg); }
+            100% { transform: translate3d(0, 0, 0) scale(1) rotateX(0deg); opacity: 1; filter: blur(0); }
         }
 
         .animate-throw { 
-            animation: throwOut 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards !important; 
+            animation: shootIntoScreen 0.6s cubic-bezier(0.5, 0, 0.2, 1) forwards !important; 
         }
         
         .animate-receive { 
@@ -215,7 +230,7 @@
             left: auto !important;
             top: auto !important;
             margin: 0 !important;
-            animation: receiveIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards; 
+            animation: explodeOutOfScreen 1s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; 
         }
 
         .status-indicator {
@@ -229,6 +244,7 @@
             text-transform: uppercase;
             z-index: 200;
             text-align: center;
+            width: 100%;
         }
 
         .room-tag {
@@ -251,13 +267,13 @@
         <div class="glass-card">
             <h1>Aether</h1>
             <div id="step-1" class="btn-group">
-                <button onclick="app.setRole('send')">Create Stream</button>
-                <button onclick="app.setRole('receive')">Join Stream</button>
+                <button onclick="app.setRole('send')">Initialize Sender</button>
+                <button onclick="app.setRole('receive')">Initialize Receiver</button>
             </div>
             <div id="step-2" class="hidden" style="width: 100%;">
                 <input type="text" id="room-input" placeholder="ROOM ID" maxlength="4">
-                <input type="text" id="url-input" placeholder="IMAGE URL" value="https://images.unsplash.com/photo-1633167606207-d840b5070fc2?q=80&w=1000&auto=format&fit=crop">
-                <button id="start-btn" onclick="app.initialize()">Connect</button>
+                <input type="text" id="url-input" placeholder="IMAGE URL" value="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop">
+                <button id="start-btn" onclick="app.initialize()">Connect Link</button>
             </div>
         </div>
     </div>
@@ -268,12 +284,12 @@
         <div id="sender-overlay">
             <img id="sender-img" class="transfer-image" src="" alt="Source">
         </div>
-        <div class="status-indicator" id="sender-status">Reach out and grab the object</div>
+        <div class="status-indicator" id="sender-status">Grip Image to Hold</div>
     </div>
 
     <div id="receiver-view">
         <div id="receiver-container"></div>
-        <div class="status-indicator">Awaiting incoming signal</div>
+        <div class="status-indicator">Awaiting Spatial Transfer...</div>
     </div>
 
     <div id="room-display" class="room-tag hidden"></div>
@@ -282,6 +298,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
+        // APP CONFIG - REPLACE WITH YOUR FIREBASE DETAILS LATER
         const firebaseConfig = {
             apiKey: "AIzaSyBxc_mSE5Z-5vvLA8_8EOFuueERi8eY63U",
             authDomain: "tokji-3b05a.firebaseapp.com",
@@ -304,10 +321,6 @@
             canvasCtx: null,
             imgEl: null,
             
-            // Hand tracking state
-            currentPos: { x: 0, y: 0 },
-            targetPos: { x: 0, y: 0 },
-
             setRole(role) {
                 this.role = role;
                 document.getElementById('step-1').classList.add('hidden');
@@ -317,7 +330,7 @@
                     document.getElementById('room-input').value = randomId;
                 } else {
                     document.getElementById('url-input').style.display = 'none';
-                    document.getElementById('start-btn').innerText = 'Join Room';
+                    document.getElementById('start-btn').innerText = 'Join Link';
                 }
             },
 
@@ -329,7 +342,7 @@
                 if (!this.roomId) return alert("Enter Room ID");
 
                 document.getElementById('setup-screen').classList.add('hidden');
-                document.getElementById('room-display').innerText = `ID: ${this.roomId}`;
+                document.getElementById('room-display').innerText = `ROOM: ${this.roomId}`;
                 document.getElementById('room-display').classList.remove('hidden');
 
                 if (this.role === 'send') {
@@ -374,6 +387,7 @@
                 });
                 camera.start();
 
+                // Reset state on start
                 set(ref(db, `aether/${this.roomId}`), {
                     status: 'idle',
                     url: this.imageUrl,
@@ -384,8 +398,10 @@
             initReceiver() {
                 document.getElementById('receiver-view').style.display = 'flex';
                 const roomRef = ref(db, `aether/${this.roomId}`);
+                
                 onValue(roomRef, (snapshot) => {
                     const data = snapshot.val();
+                    // React strictly to the 'sent' status
                     if (data && data.status === 'sent') {
                         this.handleIncoming(data.url);
                     }
@@ -400,52 +416,52 @@
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                     const landmarks = results.multiHandLandmarks[0];
 
-                    drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 1});
-                    drawLandmarks(this.canvasCtx, landmarks, {color: '#ffffff', radius: 2});
+                    drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'rgba(255,255,255,0.5)', lineWidth: 1});
+                    drawLandmarks(this.canvasCtx, landmarks, {color: '#ffffff', radius: 1});
 
                     if (this.isTransferring) return;
 
-                    // Hand Logic
                     const wrist = landmarks[0];
-                    const middleFingerMCP = landmarks[9]; // Center of palm essentially
+                    const middleFingerMCP = landmarks[9]; 
                     
-                    // Convert normalized coordinates to pixel screen coordinates
-                    // MediaPipe is mirrored, but our video-feed is also mirrored scaleX(-1)
-                    // We need to account for this so moving hand left moves image left
+                    // Convert mirrored normalized coords to screen pixels
                     const screenX = (1 - middleFingerMCP.x) * window.innerWidth;
                     const screenY = middleFingerMCP.y * window.innerHeight;
 
-                    // Gesture Detection: Folded fingers check
-                    const fingerPairs = [[8, 6], [12, 10], [16, 14], [20, 18]];
-                    const areFingersFolded = fingerPairs.every(([tipIdx, pipIdx]) => {
+                    // ADVANCED GESTURE LOGIC (Count folded fingers)
+                    const fingerPairs = [[8, 6], [12, 10], [16, 14], [20, 18]]; // Index, Middle, Ring, Pinky
+                    let foldedCount = 0;
+                    
+                    fingerPairs.forEach(([tipIdx, pipIdx]) => {
                         const tip = landmarks[tipIdx];
                         const pip = landmarks[pipIdx];
                         const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
                         const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
-                        return distTip < distPip;
+                        // If tip is closer to wrist than pip joint, it's folded
+                        if (distTip < distPip) {
+                            foldedCount++;
+                        }
                     });
 
-                    if (areFingersFolded) {
-                        // GRABBED STATE
+                    // LOGIC: 3 or 4 fingers folded = GRAB
+                    if (foldedCount >= 3) {
                         if (!this.isGrabbed) {
                             this.isGrabbed = true;
                             this.imgEl.classList.add('grabbed');
-                            document.getElementById('sender-status').innerText = "OBJECT SECURED - THROW TO SEND";
+                            document.getElementById('sender-status').innerText = "OBJECT SECURED - OPEN HAND TO THROW";
+                            if ("vibrate" in navigator) navigator.vibrate(10);
                         }
                         
-                        // Follow hand
+                        // Follow hand smoothly using CSS variables
                         const tx = screenX - window.innerWidth / 2;
                         const ty = screenY - window.innerHeight / 2;
-                        this.imgEl.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(1.1)`;
-                        
-                        // Store current pos for the throw animation start point
-                        this.currentPos = { x: tx, y: ty };
+                        this.imgEl.style.setProperty('--tx', `${tx}px`);
+                        this.imgEl.style.setProperty('--ty', `${ty}px`);
 
-                    } else {
-                        // RELEASED STATE
-                        if (this.isGrabbed) {
-                            this.triggerSend();
-                        }
+                    } 
+                    // LOGIC: 0 or 1 finger folded = OPEN HAND (THROW)
+                    else if (foldedCount <= 1 && this.isGrabbed) {
+                        this.triggerSend();
                     }
                 }
                 this.canvasCtx.restore();
@@ -458,20 +474,17 @@
                 const status = document.getElementById('sender-status');
                 status.innerText = "SIGNAL DISPATCHED";
 
-                // Set CSS variables for the animation to start where the hand let go
-                this.imgEl.style.setProperty('--tx', `${this.currentPos.x}px`);
-                this.imgEl.style.setProperty('--ty', `${this.currentPos.y}px`);
-                
                 this.imgEl.classList.remove('grabbed');
                 this.imgEl.classList.add('animate-throw');
 
+                // Trigger Firebase to notify Receiver
                 set(ref(db, `aether/${this.roomId}`), {
                     status: 'sent',
                     url: this.imageUrl,
                     timestamp: Date.now()
                 });
 
-                // PERMANENT REMOVAL from sender side
+                // Completely remove image from sender screen after animation
                 setTimeout(() => {
                     this.imgEl.classList.add('hidden-permanent');
                     status.innerText = "TRANSFER COMPLETE";
@@ -481,14 +494,15 @@
             handleIncoming(url) {
                 const container = document.getElementById('receiver-container');
                 container.innerHTML = '';
+                
                 const img = document.createElement('img');
                 img.src = url;
                 img.className = 'transfer-image animate-receive';
                 container.appendChild(img);
                 
-                if ("vibrate" in navigator) navigator.vibrate([20, 50, 20]);
+                if ("vibrate" in navigator) navigator.vibrate([30, 60, 100]);
                 
-                // Clear DB status so it doesn't re-trigger on next join
+                // Set DB status to received so it doesn't loop
                 setTimeout(() => {
                     set(ref(db, `aether/${this.roomId}/status`), 'received');
                 }, 2000);
