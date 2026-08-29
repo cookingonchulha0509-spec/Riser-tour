@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AETHER | Spatial Transfer</title>
+    <title>AETHER | Hologram Transfer</title>
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --bg: #050505;
-            --card-bg: #111111;
-            --accent: #ffffff;
+            --bg: #030a10;
+            --accent: #00f0ff;
+            --accent-glow: rgba(0, 240, 255, 0.5);
             --text-main: #e0e0e0;
-            --text-dim: #666666;
-            --border: rgba(255, 255, 255, 0.08);
-            --font-main: 'Inter', sans-serif;
+            --font-main: 'Share Tech Mono', monospace;
         }
 
         * {
@@ -37,7 +34,20 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            perspective: 1000px; /* Crucial for 3D effects */
+            perspective: 1200px;
+        }
+
+        /* --- Sci-Fi Grid Background --- */
+        .scifi-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            background-position: center center;
+            z-index: 1;
+            pointer-events: none;
         }
 
         /* --- UI Screens --- */
@@ -50,246 +60,219 @@
             justify-content: center;
             padding: 2rem;
             z-index: 100;
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
-            background: var(--bg);
+            background: radial-gradient(circle at center, #0a192f 0%, #030a10 100%);
+            transition: opacity 0.5s ease;
         }
 
         .screen.hidden {
             opacity: 0;
-            visibility: hidden;
             pointer-events: none;
         }
 
-        .glass-card {
+        .hud-card {
             width: 100%;
-            max-width: 380px;
+            max-width: 400px;
             padding: 3rem 2rem;
             text-align: center;
+            border: 1px solid var(--accent);
+            background: rgba(0, 20, 40, 0.6);
+            box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px rgba(0, 240, 255, 0.1);
+            backdrop-filter: blur(5px);
+            position: relative;
         }
+
+        /* SciFi Corners */
+        .hud-card::before, .hud-card::after {
+            content: ''; position: absolute; width: 20px; height: 20px; border: 2px solid var(--accent);
+        }
+        .hud-card::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .hud-card::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
 
         h1 {
-            font-size: 1rem;
-            font-weight: 300;
-            letter-spacing: 0.5em;
+            font-size: 2rem;
+            letter-spacing: 0.3em;
             text-transform: uppercase;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
             color: var(--accent);
+            text-shadow: 0 0 10px var(--accent-glow);
         }
 
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            width: 100%;
-        }
+        .btn-group { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
 
         button {
             width: 100%;
-            background: transparent;
-            color: var(--text-main);
-            border: 1px solid var(--border);
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--accent);
+            border: 1px solid var(--accent);
             padding: 1.2rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 1rem;
             text-transform: uppercase;
-            letter-spacing: 0.2em;
+            letter-spacing: 0.1em;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-family: inherit;
         }
 
         button:hover {
-            background: var(--text-main);
-            color: var(--bg);
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 15px var(--accent-glow);
         }
 
         input {
             width: 100%;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-bottom: 2px solid var(--accent);
             padding: 1rem;
-            color: white;
-            font-size: 1rem;
+            color: var(--accent);
+            font-size: 1.2rem;
             text-align: center;
             margin-bottom: 2rem;
             outline: none;
             font-family: inherit;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.2em;
         }
-
-        input:focus {
-            border-bottom-color: var(--accent);
-        }
+        input:focus { box-shadow: 0 0 10px var(--accent-glow); }
 
         /* --- Sender View --- */
         #sender-view {
-            position: absolute;
-            inset: 0;
-            z-index: 10;
-            background: #000;
-            display: none;
-            perspective: 800px;
+            position: absolute; inset: 0; z-index: 10; display: none; background: #000;
         }
 
         #video-feed {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            filter: grayscale(0.8) contrast(1.2) brightness(0.5);
+            width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+            filter: sepia(1) hue-rotate(180deg) saturate(2) brightness(0.4) contrast(1.2);
         }
 
-        #debug-canvas {
+        /* --- Hologram Image Effect --- */
+        .hologram-wrapper {
             position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 11;
-            transform: scaleX(-1);
-            pointer-events: none;
-            opacity: 0.3;
-        }
-
-        #sender-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 12;
-        }
-
-        /* --- The Floating Image (Advanced State Handling) --- */
-        .transfer-image {
-            position: absolute;
-            width: 240px;
-            height: 320px;
-            object-fit: cover;
-            border-radius: 8px;
-            box-shadow: 0 30px 100px rgba(0,0,0,0.9), 0 0 20px rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            left: 50%;
-            top: 50%;
-            margin-left: -120px;
-            margin-top: -160px;
+            width: 260px; height: 350px;
+            left: 50%; top: 50%;
+            margin-left: -130px; margin-top: -175px;
             
-            /* CSS Variables for JS to update coordinates smoothly */
-            --tx: 0px;
-            --ty: 0px;
-            --s: 1; /* Scale */
-            --r: 0deg; /* Rotation */
-            
+            --tx: 0px; --ty: 0px; --s: 1; --r: 0deg;
             transform: translate3d(var(--tx), var(--ty), 0) scale(var(--s)) rotate(var(--r));
-            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
             will-change: transform;
+            z-index: 15;
+            pointer-events: none;
         }
 
-        /* Tagda Squeeze Effect on Grab */
-        .transfer-image.grabbed {
-            --s: 0.75 !important;
-            --r: -8deg !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,1), 0 0 50px rgba(255,255,255,0.4);
-            border-color: rgba(255,255,255,0.7);
-            /* Faster tracking when held */
-            transition: transform 0.05s linear, box-shadow 0.2s ease;
+        .transfer-image {
+            width: 100%; height: 100%; object-fit: cover;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 30px var(--accent-glow);
+            filter: drop-shadow(0 0 10px var(--accent));
+            opacity: 0.8;
+        }
+
+        /* Scanning Line */
+        .hologram-wrapper::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(to bottom, transparent, rgba(0, 240, 255, 0.6) 50%, transparent);
+            height: 10px; width: 100%;
+            animation: scanline 2s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+
+        /* Grabbed State */
+        .hologram-wrapper.grabbed {
+            --s: 0.7; --r: -5deg;
+            transition: transform 0.05s linear;
+        }
+        .hologram-wrapper.grabbed .transfer-image {
+            box-shadow: 0 0 50px #fff, 0 0 80px var(--accent);
+            opacity: 1;
+            filter: brightness(1.5);
         }
 
         /* --- Receiver View --- */
         #receiver-view {
-            position: absolute;
-            inset: 0;
-            z-index: 5;
-            background: radial-gradient(circle at center, #111 0%, #000 100%);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            perspective: 1000px;
+            position: absolute; inset: 0; z-index: 5;
+            background: radial-gradient(circle at center, #02101a 0%, #000 100%);
+            display: none; align-items: center; justify-content: center;
         }
 
-        /* --- 3D Animations --- */
-        @keyframes shootIntoScreen {
-            0% { transform: translate3d(var(--tx), var(--ty), 0) scale(0.75) rotate(-8deg); opacity: 1; }
-            40% { transform: translate3d(var(--tx), var(--ty), -200px) scale(0.8) rotate(0deg); opacity: 0.8; }
-            100% { transform: translate3d(var(--tx), calc(var(--ty) - 300px), -1500px) scale(0); opacity: 0; filter: blur(30px); }
-        }
-
-        @keyframes explodeOutOfScreen {
-            0% { transform: translate3d(0, 500px, -1500px) scale(0.1) rotateX(45deg); opacity: 0; filter: blur(40px); }
-            50% { transform: translate3d(0, -50px, 100px) scale(1.1) rotateX(-10deg); opacity: 1; filter: blur(5px); }
-            80% { transform: translate3d(0, 20px, 0) scale(0.95) rotateX(5deg); }
-            100% { transform: translate3d(0, 0, 0) scale(1) rotateX(0deg); opacity: 1; filter: blur(0); }
-        }
-
-        .animate-throw { 
-            animation: shootIntoScreen 0.6s cubic-bezier(0.5, 0, 0.2, 1) forwards !important; 
-        }
+        /* --- High-End Sci-Fi Animations --- */
         
+        /* Sender Throwing: Beam up */
+        @keyframes beamOut {
+            0% { transform: translate3d(var(--tx), var(--ty), 0) scale(0.7) rotate(-5deg); opacity: 1; filter: brightness(1.5); }
+            20% { transform: translate3d(var(--tx), var(--ty), 0) scale(0.1, 1.5) rotate(0deg); opacity: 1; }
+            100% { transform: translate3d(var(--tx), -120vh, 0) scale(0.01, 3); opacity: 0; filter: blur(10px); }
+        }
+
+        /* Receiver Receiving: Portal drop */
+        @keyframes materialize {
+            0% { transform: translateY(-500px) scale(0.1, 4); opacity: 0; filter: brightness(3); }
+            40% { transform: translateY(20px) scale(1.1, 0.9); opacity: 1; filter: brightness(2); }
+            70% { transform: translateY(-10px) scale(0.95, 1.05); filter: brightness(1); }
+            100% { transform: translateY(0) scale(1, 1); opacity: 0.9; }
+        }
+
+        .animate-throw { animation: beamOut 0.5s cubic-bezier(0.7, 0, 1, 1) forwards !important; }
         .animate-receive { 
-            position: relative !important;
-            left: auto !important;
-            top: auto !important;
-            margin: 0 !important;
-            animation: explodeOutOfScreen 1s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; 
+            position: relative !important; left: auto !important; top: auto !important; margin: 0 !important;
+            animation: materialize 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; 
         }
 
         .status-indicator {
-            position: fixed;
-            bottom: 3rem;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.6rem;
-            letter-spacing: 0.4em;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            z-index: 200;
-            text-align: center;
-            width: 100%;
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+            font-size: 1rem; color: var(--accent); text-shadow: 0 0 5px var(--accent);
+            z-index: 200; text-align: center; width: 100%;
         }
 
         .room-tag {
-            position: fixed;
-            top: 2rem;
-            left: 2rem;
-            font-size: 0.7rem;
-            letter-spacing: 0.2em;
-            color: var(--text-dim);
+            position: fixed; top: 1.5rem; left: 1.5rem; font-size: 1rem;
+            color: var(--accent); z-index: 100;
+            border: 1px solid var(--accent); padding: 5px 10px; background: rgba(0,240,255,0.1);
         }
 
-        .hidden-permanent {
-            display: none !important;
-        }
+        .hidden-permanent { display: none !important; }
     </style>
 </head>
 <body>
 
+    <div class="scifi-grid"></div>
+
     <div id="setup-screen" class="screen">
-        <div class="glass-card">
-            <h1>Aether</h1>
+        <div class="hud-card">
+            <h1>AETHER</h1>
             <div id="step-1" class="btn-group">
-                <button onclick="app.setRole('send')">Initialize Sender</button>
-                <button onclick="app.setRole('receive')">Initialize Receiver</button>
+                <button onclick="app.setRole('send')">INITIALIZE TRANSMITTER</button>
+                <button onclick="app.setRole('receive')">ACTIVATE RECEIVER</button>
             </div>
             <div id="step-2" class="hidden" style="width: 100%;">
-                <input type="text" id="room-input" placeholder="ROOM ID" maxlength="4">
-                <input type="text" id="url-input" placeholder="IMAGE URL" value="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop">
-                <button id="start-btn" onclick="app.initialize()">Connect Link</button>
+                <input type="text" id="room-input" placeholder="PORTAL ID" maxlength="4">
+                <input type="text" id="url-input" placeholder="PAYLOAD (IMG URL)" value="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop">
+                <button id="start-btn" onclick="app.initialize()">ENGAGE LINK</button>
             </div>
         </div>
     </div>
 
+    <!-- SENDER SIDE -->
     <div id="sender-view">
         <video id="video-feed" playsinline></video>
-        <canvas id="debug-canvas"></canvas>
-        <div id="sender-overlay">
-            <img id="sender-img" class="transfer-image" src="" alt="Source">
+        
+        <!-- Hologram Element -->
+        <div id="holo-wrap" class="hologram-wrapper">
+            <img id="sender-img" class="transfer-image" src="" alt="Payload">
         </div>
-        <div class="status-indicator" id="sender-status">Grip Image to Hold</div>
+
+        <div class="status-indicator" id="sender-status">SYSTEM READY: GRIP TO ACQUIRE TARGET</div>
     </div>
 
+    <!-- RECEIVER SIDE (NO CAMERA NEEDED) -->
     <div id="receiver-view">
+        <div class="scifi-grid"></div>
         <div id="receiver-container"></div>
-        <div class="status-indicator">Awaiting Spatial Transfer...</div>
+        <div class="status-indicator" id="receiver-status">AWAITING SPATIAL ANOMALY...</div>
     </div>
 
     <div id="room-display" class="room-tag hidden"></div>
@@ -298,7 +281,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-        // APP CONFIG - REPLACE WITH YOUR FIREBASE DETAILS LATER
+        // Your provided Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBxc_mSE5Z-5vvLA8_8EOFuueERi8eY63U",
             authDomain: "tokji-3b05a.firebaseapp.com",
@@ -313,36 +296,31 @@
         const db = getDatabase(fApp);
 
         const app = {
-            role: null,
-            roomId: null,
-            imageUrl: '',
-            isTransferring: false,
-            isGrabbed: false,
-            canvasCtx: null,
-            imgEl: null,
-            
+            role: null, roomId: null, imageUrl: '',
+            isTransferring: false, isGrabbed: false,
+            holoWrap: null, imgEl: null,
+            lastSignalId: null,
+
             setRole(role) {
                 this.role = role;
                 document.getElementById('step-1').classList.add('hidden');
                 document.getElementById('step-2').classList.remove('hidden');
                 if (role === 'send') {
-                    const randomId = Math.floor(1000 + Math.random() * 9000);
-                    document.getElementById('room-input').value = randomId;
+                    document.getElementById('room-input').value = Math.floor(1000 + Math.random() * 9000);
                 } else {
                     document.getElementById('url-input').style.display = 'none';
-                    document.getElementById('start-btn').innerText = 'Join Link';
+                    document.getElementById('start-btn').innerText = 'LINK PORTAL';
                 }
             },
 
             async initialize() {
                 this.roomId = document.getElementById('room-input').value.trim();
                 this.imageUrl = document.getElementById('url-input').value.trim();
-                this.imgEl = document.getElementById('sender-img');
                 
-                if (!this.roomId) return alert("Enter Room ID");
+                if (!this.roomId) return alert("ENTER PORTAL ID");
 
                 document.getElementById('setup-screen').classList.add('hidden');
-                document.getElementById('room-display').innerText = `ROOM: ${this.roomId}`;
+                document.getElementById('room-display').innerText = `PORTAL: ${this.roomId}`;
                 document.getElementById('room-display').classList.remove('hidden');
 
                 if (this.role === 'send') {
@@ -355,81 +333,52 @@
             initSender() {
                 const view = document.getElementById('sender-view');
                 const video = document.getElementById('video-feed');
-                const canvas = document.getElementById('debug-canvas');
                 
-                this.canvasCtx = canvas.getContext('2d');
+                this.holoWrap = document.getElementById('holo-wrap');
+                this.imgEl = document.getElementById('sender-img');
+                
                 view.style.display = 'block';
                 this.imgEl.src = this.imageUrl;
 
-                const hands = new Hands({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-                });
-
-                hands.setOptions({
-                    maxNumHands: 1,
-                    modelComplexity: 1,
-                    minDetectionConfidence: 0.7,
-                    minTrackingConfidence: 0.7
-                });
-
+                const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+                hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
                 hands.onResults((results) => this.processHands(results));
 
                 const camera = new Camera(video, {
-                    onFrame: async () => {
-                        if (canvas.width !== video.videoWidth) {
-                            canvas.width = video.videoWidth;
-                            canvas.height = video.videoHeight;
-                        }
-                        await hands.send({image: video});
-                    },
-                    width: 1280,
-                    height: 720
+                    onFrame: async () => { await hands.send({image: video}); },
+                    width: 1280, height: 720
                 });
                 camera.start();
-
-                // Reset state on start
-                set(ref(db, `aether/${this.roomId}`), {
-                    status: 'idle',
-                    url: this.imageUrl,
-                    timestamp: Date.now()
-                });
             },
 
             initReceiver() {
                 document.getElementById('receiver-view').style.display = 'flex';
-                const roomRef = ref(db, `aether/${this.roomId}`);
                 
-                onValue(roomRef, (snapshot) => {
+                // BULLETPROOF SYNC: Listen for distinct actions, not just status strings
+                const signalRef = ref(db, `aether/${this.roomId}/signal`);
+                
+                onValue(signalRef, (snapshot) => {
                     const data = snapshot.val();
-                    // React strictly to the 'sent' status
-                    if (data && data.status === 'sent') {
+                    // If a new signal arrives that we haven't seen yet
+                    if (data && data.action === 'throw' && data.id !== this.lastSignalId) {
+                        this.lastSignalId = data.id; // Remember this signal so we don't repeat it
                         this.handleIncoming(data.url);
                     }
                 });
             },
 
             processHands(results) {
-                const canvas = document.getElementById('debug-canvas');
-                this.canvasCtx.save();
-                this.canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+                if (this.isTransferring) return;
 
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                     const landmarks = results.multiHandLandmarks[0];
-
-                    drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'rgba(255,255,255,0.5)', lineWidth: 1});
-                    drawLandmarks(this.canvasCtx, landmarks, {color: '#ffffff', radius: 1});
-
-                    if (this.isTransferring) return;
-
                     const wrist = landmarks[0];
-                    const middleFingerMCP = landmarks[9]; 
+                    const palm = landmarks[9]; 
                     
-                    // Convert mirrored normalized coords to screen pixels
-                    const screenX = (1 - middleFingerMCP.x) * window.innerWidth;
-                    const screenY = middleFingerMCP.y * window.innerHeight;
+                    const screenX = (1 - palm.x) * window.innerWidth;
+                    const screenY = palm.y * window.innerHeight;
 
-                    // ADVANCED GESTURE LOGIC (Count folded fingers)
-                    const fingerPairs = [[8, 6], [12, 10], [16, 14], [20, 18]]; // Index, Middle, Ring, Pinky
+                    const fingerPairs = [[8, 6], [12, 10], [16, 14], [20, 18]]; 
                     let foldedCount = 0;
                     
                     fingerPairs.forEach(([tipIdx, pipIdx]) => {
@@ -437,34 +386,29 @@
                         const pip = landmarks[pipIdx];
                         const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
                         const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
-                        // If tip is closer to wrist than pip joint, it's folded
-                        if (distTip < distPip) {
-                            foldedCount++;
-                        }
+                        if (distTip < distPip) foldedCount++;
                     });
 
-                    // LOGIC: 3 or 4 fingers folded = GRAB
+                    // GRAB LOGIC
                     if (foldedCount >= 3) {
                         if (!this.isGrabbed) {
                             this.isGrabbed = true;
-                            this.imgEl.classList.add('grabbed');
-                            document.getElementById('sender-status').innerText = "OBJECT SECURED - OPEN HAND TO THROW";
+                            this.holoWrap.classList.add('grabbed');
+                            document.getElementById('sender-status').innerText = "TARGET LOCKED - OPEN HAND TO TRANSMIT";
                             if ("vibrate" in navigator) navigator.vibrate(10);
                         }
                         
-                        // Follow hand smoothly using CSS variables
                         const tx = screenX - window.innerWidth / 2;
                         const ty = screenY - window.innerHeight / 2;
-                        this.imgEl.style.setProperty('--tx', `${tx}px`);
-                        this.imgEl.style.setProperty('--ty', `${ty}px`);
+                        this.holoWrap.style.setProperty('--tx', `${tx}px`);
+                        this.holoWrap.style.setProperty('--ty', `${ty}px`);
 
                     } 
-                    // LOGIC: 0 or 1 finger folded = OPEN HAND (THROW)
+                    // THROW LOGIC (Open hand)
                     else if (foldedCount <= 1 && this.isGrabbed) {
                         this.triggerSend();
                     }
                 }
-                this.canvasCtx.restore();
             },
 
             triggerSend() {
@@ -472,40 +416,47 @@
                 this.isGrabbed = false;
                 
                 const status = document.getElementById('sender-status');
-                status.innerText = "SIGNAL DISPATCHED";
+                status.innerText = "TRANSMITTING DATA...";
 
-                this.imgEl.classList.remove('grabbed');
-                this.imgEl.classList.add('animate-throw');
+                this.holoWrap.classList.remove('grabbed');
+                this.holoWrap.classList.add('animate-throw');
 
-                // Trigger Firebase to notify Receiver
-                set(ref(db, `aether/${this.roomId}`), {
-                    status: 'sent',
+                // BULLETPROOF FIREBASE SYNC: Send a unique ID (Date.now())
+                // This ensures the receiver instantly detects a "change" even if status was already 'sent'
+                set(ref(db, `aether/${this.roomId}/signal`), {
+                    action: 'throw',
                     url: this.imageUrl,
-                    timestamp: Date.now()
+                    id: Date.now() 
                 });
 
-                // Completely remove image from sender screen after animation
                 setTimeout(() => {
-                    this.imgEl.classList.add('hidden-permanent');
-                    status.innerText = "TRANSFER COMPLETE";
-                }, 700);
+                    this.holoWrap.classList.add('hidden-permanent');
+                    status.innerText = "TRANSMISSION COMPLETE";
+                }, 600);
             },
 
             handleIncoming(url) {
                 const container = document.getElementById('receiver-container');
-                container.innerHTML = '';
+                const status = document.getElementById('receiver-status');
+                
+                status.innerText = "ANOMALY DETECTED!";
+                container.innerHTML = ''; // Clear previous
+                
+                const wrap = document.createElement('div');
+                wrap.className = 'hologram-wrapper animate-receive';
                 
                 const img = document.createElement('img');
                 img.src = url;
-                img.className = 'transfer-image animate-receive';
-                container.appendChild(img);
+                img.className = 'transfer-image';
                 
-                if ("vibrate" in navigator) navigator.vibrate([30, 60, 100]);
+                wrap.appendChild(img);
+                container.appendChild(wrap);
                 
-                // Set DB status to received so it doesn't loop
+                if ("vibrate" in navigator) navigator.vibrate([40, 80, 150]);
+                
                 setTimeout(() => {
-                    set(ref(db, `aether/${this.roomId}/status`), 'received');
-                }, 2000);
+                    status.innerText = "PAYLOAD RECEIVED SUCCESSFULLY";
+                }, 1000);
             }
         };
 
