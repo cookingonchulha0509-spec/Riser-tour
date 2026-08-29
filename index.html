@@ -135,7 +135,7 @@
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
-            filter: grayscale(0.5) contrast(1.1) brightness(0.7);
+            filter: grayscale(0.8) contrast(1.2) brightness(0.5);
         }
 
         #debug-canvas {
@@ -147,16 +147,38 @@
             z-index: 11;
             transform: scaleX(-1);
             pointer-events: none;
+            opacity: 0.4;
         }
 
         #sender-overlay {
             position: absolute;
             inset: 0;
             pointer-events: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             z-index: 12;
+        }
+
+        /* --- The Floating Image --- */
+        .transfer-image {
+            position: absolute;
+            width: 240px;
+            height: 320px;
+            object-fit: cover;
+            border-radius: 4px;
+            box-shadow: 0 30px 100px rgba(0,0,0,0.9), 0 0 20px rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            /* Initial position center */
+            left: 50%;
+            top: 50%;
+            margin-left: -120px;
+            margin-top: -160px;
+            transition: transform 0.1s ease-out, box-shadow 0.3s ease;
+            will-change: transform;
+        }
+
+        .transfer-image.grabbed {
+            box-shadow: 0 50px 120px rgba(0,0,0,1), 0 0 40px rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transition: transform 0.05s linear; /* Faster tracking when held */
         }
 
         /* --- Receiver View --- */
@@ -164,38 +186,37 @@
             position: absolute;
             inset: 0;
             z-index: 5;
-            background: radial-gradient(circle at center, #111 0%, #050505 100%);
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
             display: none;
             align-items: center;
             justify-content: center;
-        }
-
-        /* --- The Floating Image --- */
-        .transfer-image {
-            width: 280px;
-            height: 380px;
-            object-fit: cover;
-            border-radius: 2px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: transform 0.1s ease-out;
+            overflow: hidden;
         }
 
         /* --- Animations --- */
         @keyframes throwOut {
-            0% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0px); }
-            30% { transform: scale(1.1) translateY(20px); opacity: 1; }
-            100% { transform: scale(0) translateY(-500px); opacity: 0; filter: blur(20px); }
+            0% { transform: translate3d(var(--tx), var(--ty), 0) scale(1.1); opacity: 1; filter: blur(0px); }
+            100% { transform: translate3d(var(--tx), -150vh, -1000px) scale(0); opacity: 0; filter: blur(40px); }
         }
 
         @keyframes receiveIn {
-            0% { transform: scale(0.5) translateY(500px); opacity: 0; filter: blur(20px); }
-            60% { transform: scale(1.05) translateY(-20px); opacity: 1; filter: blur(0px); }
-            100% { transform: scale(1) translateY(0); opacity: 1; }
+            0% { transform: translateY(800px) scale(0.2) rotateX(-30deg); opacity: 0; filter: blur(30px); }
+            60% { transform: translateY(-30px) scale(1.05) rotateX(0deg); opacity: 1; filter: blur(0px); }
+            80% { transform: translateY(10px) scale(0.98); }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
         }
 
-        .animate-throw { animation: throwOut 0.8s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-        .animate-receive { animation: receiveIn 1.2s cubic-bezier(0.2, 1, 0.3, 1) forwards; }
+        .animate-throw { 
+            animation: throwOut 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards !important; 
+        }
+        
+        .animate-receive { 
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            margin: 0 !important;
+            animation: receiveIn 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards; 
+        }
 
         .status-indicator {
             position: fixed;
@@ -207,6 +228,7 @@
             color: var(--text-dim);
             text-transform: uppercase;
             z-index: 200;
+            text-align: center;
         }
 
         .room-tag {
@@ -217,6 +239,10 @@
             letter-spacing: 0.2em;
             color: var(--text-dim);
         }
+
+        .hidden-permanent {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -224,12 +250,10 @@
     <div id="setup-screen" class="screen">
         <div class="glass-card">
             <h1>Aether</h1>
-            
             <div id="step-1" class="btn-group">
                 <button onclick="app.setRole('send')">Create Stream</button>
                 <button onclick="app.setRole('receive')">Join Stream</button>
             </div>
-
             <div id="step-2" class="hidden" style="width: 100%;">
                 <input type="text" id="room-input" placeholder="ROOM ID" maxlength="4">
                 <input type="text" id="url-input" placeholder="IMAGE URL" value="https://images.unsplash.com/photo-1633167606207-d840b5070fc2?q=80&w=1000&auto=format&fit=crop">
@@ -244,32 +268,29 @@
         <div id="sender-overlay">
             <img id="sender-img" class="transfer-image" src="" alt="Source">
         </div>
-        <div class="status-indicator" id="sender-status">Close fist to send</div>
+        <div class="status-indicator" id="sender-status">Reach out and grab the object</div>
     </div>
 
     <div id="receiver-view">
-        <div id="receiver-container">
-            <!-- Incoming image appears here -->
-        </div>
+        <div id="receiver-container"></div>
         <div class="status-indicator">Awaiting incoming signal</div>
     </div>
 
     <div id="room-display" class="room-tag hidden"></div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
         const firebaseConfig = {
-  apiKey: "AIzaSyBxc_mSE5Z-5vvLA8_8EOFuueERi8eY63U",
-  authDomain: "tokji-3b05a.firebaseapp.com",
-  databaseURL: "https://tokji-3b05a-default-rtdb.firebaseio.com",
-  projectId: "tokji-3b05a",
-  storageBucket: "tokji-3b05a.firebasestorage.app",
-  messagingSenderId: "743789412997",
-  appId: "1:743789412997:web:be9196bd3dd574ef879fec"
-};
+            apiKey: "AIzaSyBxc_mSE5Z-5vvLA8_8EOFuueERi8eY63U",
+            authDomain: "tokji-3b05a.firebaseapp.com",
+            databaseURL: "https://tokji-3b05a-default-rtdb.firebaseio.com",
+            projectId: "tokji-3b05a",
+            storageBucket: "tokji-3b05a.firebasestorage.app",
+            messagingSenderId: "743789412997",
+            appId: "1:743789412997:web:be9196bd3dd574ef879fec"
+        };
 
         const fApp = initializeApp(firebaseConfig);
         const db = getDatabase(fApp);
@@ -279,13 +300,18 @@
             roomId: null,
             imageUrl: '',
             isTransferring: false,
+            isGrabbed: false,
             canvasCtx: null,
+            imgEl: null,
+            
+            // Hand tracking state
+            currentPos: { x: 0, y: 0 },
+            targetPos: { x: 0, y: 0 },
 
             setRole(role) {
                 this.role = role;
                 document.getElementById('step-1').classList.add('hidden');
                 document.getElementById('step-2').classList.remove('hidden');
-                
                 if (role === 'send') {
                     const randomId = Math.floor(1000 + Math.random() * 9000);
                     document.getElementById('room-input').value = randomId;
@@ -298,6 +324,8 @@
             async initialize() {
                 this.roomId = document.getElementById('room-input').value.trim();
                 this.imageUrl = document.getElementById('url-input').value.trim();
+                this.imgEl = document.getElementById('sender-img');
+                
                 if (!this.roomId) return alert("Enter Room ID");
 
                 document.getElementById('setup-screen').classList.add('hidden');
@@ -315,11 +343,10 @@
                 const view = document.getElementById('sender-view');
                 const video = document.getElementById('video-feed');
                 const canvas = document.getElementById('debug-canvas');
-                const img = document.getElementById('sender-img');
                 
                 this.canvasCtx = canvas.getContext('2d');
                 view.style.display = 'block';
-                img.src = this.imageUrl;
+                this.imgEl.src = this.imageUrl;
 
                 const hands = new Hands({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -336,7 +363,6 @@
 
                 const camera = new Camera(video, {
                     onFrame: async () => {
-                        // Sync canvas size to video size
                         if (canvas.width !== video.videoWidth) {
                             canvas.width = video.videoWidth;
                             canvas.height = video.videoHeight;
@@ -374,36 +400,50 @@
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                     const landmarks = results.multiHandLandmarks[0];
 
-                    // Visual Debugging: Draw the skeleton
-                    drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
-                    drawLandmarks(this.canvasCtx, landmarks, {color: '#ffffff', radius: 3, lineWidth: 1});
+                    drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 1});
+                    drawLandmarks(this.canvasCtx, landmarks, {color: '#ffffff', radius: 2});
 
-                    if (!this.isTransferring) {
-                        // REQ 1: RELATIVE FIST DETECTION
-                        // Compare Finger Tip distances to PIP joint distances relative to the wrist
-                        const wrist = landmarks[0];
+                    if (this.isTransferring) return;
+
+                    // Hand Logic
+                    const wrist = landmarks[0];
+                    const middleFingerMCP = landmarks[9]; // Center of palm essentially
+                    
+                    // Convert normalized coordinates to pixel screen coordinates
+                    // MediaPipe is mirrored, but our video-feed is also mirrored scaleX(-1)
+                    // We need to account for this so moving hand left moves image left
+                    const screenX = (1 - middleFingerMCP.x) * window.innerWidth;
+                    const screenY = middleFingerMCP.y * window.innerHeight;
+
+                    // Gesture Detection: Folded fingers check
+                    const fingerPairs = [[8, 6], [12, 10], [16, 14], [20, 18]];
+                    const areFingersFolded = fingerPairs.every(([tipIdx, pipIdx]) => {
+                        const tip = landmarks[tipIdx];
+                        const pip = landmarks[pipIdx];
+                        const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                        const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+                        return distTip < distPip;
+                    });
+
+                    if (areFingersFolded) {
+                        // GRABBED STATE
+                        if (!this.isGrabbed) {
+                            this.isGrabbed = true;
+                            this.imgEl.classList.add('grabbed');
+                            document.getElementById('sender-status').innerText = "OBJECT SECURED - THROW TO SEND";
+                        }
                         
-                        // Finger Mapping: [Tip, PIP]
-                        const fingerPairs = [
-                            [8, 6],   // Index
-                            [12, 10],  // Middle
-                            [16, 14],  // Ring
-                            [20, 18]   // Pinky
-                        ];
+                        // Follow hand
+                        const tx = screenX - window.innerWidth / 2;
+                        const ty = screenY - window.innerHeight / 2;
+                        this.imgEl.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(1.1)`;
+                        
+                        // Store current pos for the throw animation start point
+                        this.currentPos = { x: tx, y: ty };
 
-                        const areFingersFolded = fingerPairs.every(([tipIdx, pipIdx]) => {
-                            const tip = landmarks[tipIdx];
-                            const pip = landmarks[pipIdx];
-                            
-                            // Euclidean distance to wrist
-                            const distTipToWrist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-                            const distPipToWrist = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
-                            
-                            // If tip is closer to wrist than the PIP joint, finger is folded
-                            return distTipToWrist < distPipToWrist;
-                        });
-
-                        if (areFingersFolded) {
+                    } else {
+                        // RELEASED STATE
+                        if (this.isGrabbed) {
                             this.triggerSend();
                         }
                     }
@@ -413,11 +453,17 @@
 
             triggerSend() {
                 this.isTransferring = true;
-                const img = document.getElementById('sender-img');
+                this.isGrabbed = false;
+                
                 const status = document.getElementById('sender-status');
-
-                img.classList.add('animate-throw');
                 status.innerText = "SIGNAL DISPATCHED";
+
+                // Set CSS variables for the animation to start where the hand let go
+                this.imgEl.style.setProperty('--tx', `${this.currentPos.x}px`);
+                this.imgEl.style.setProperty('--ty', `${this.currentPos.y}px`);
+                
+                this.imgEl.classList.remove('grabbed');
+                this.imgEl.classList.add('animate-throw');
 
                 set(ref(db, `aether/${this.roomId}`), {
                     status: 'sent',
@@ -425,12 +471,11 @@
                     timestamp: Date.now()
                 });
 
+                // PERMANENT REMOVAL from sender side
                 setTimeout(() => {
-                    img.classList.remove('animate-throw');
-                    status.innerText = "Close fist to send";
-                    this.isTransferring = false;
-                    set(ref(db, `aether/${this.roomId}/status`), 'idle');
-                }, 2000);
+                    this.imgEl.classList.add('hidden-permanent');
+                    status.innerText = "TRANSFER COMPLETE";
+                }, 700);
             },
 
             handleIncoming(url) {
@@ -440,7 +485,13 @@
                 img.src = url;
                 img.className = 'transfer-image animate-receive';
                 container.appendChild(img);
-                if ("vibrate" in navigator) navigator.vibrate([10, 30, 10]);
+                
+                if ("vibrate" in navigator) navigator.vibrate([20, 50, 20]);
+                
+                // Clear DB status so it doesn't re-trigger on next join
+                setTimeout(() => {
+                    set(ref(db, `aether/${this.roomId}/status`), 'received');
+                }, 2000);
             }
         };
 
