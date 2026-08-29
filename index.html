@@ -8,6 +8,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
     <style>
@@ -137,6 +138,17 @@
             filter: grayscale(0.5) contrast(1.1) brightness(0.7);
         }
 
+        #debug-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 11;
+            transform: scaleX(-1);
+            pointer-events: none;
+        }
+
         #sender-overlay {
             position: absolute;
             inset: 0;
@@ -144,6 +156,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 12;
         }
 
         /* --- Receiver View --- */
@@ -227,6 +240,7 @@
 
     <div id="sender-view">
         <video id="video-feed" playsinline></video>
+        <canvas id="debug-canvas"></canvas>
         <div id="sender-overlay">
             <img id="sender-img" class="transfer-image" src="" alt="Source">
         </div>
@@ -245,10 +259,8 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-        // --- FIREBASE CONFIGURATION ---
-        // Replace these empty strings with your actual Firebase project config
         const firebaseConfig = {
   apiKey: "AIzaSyBxc_mSE5Z-5vvLA8_8EOFuueERi8eY63U",
   authDomain: "tokji-3b05a.firebaseapp.com",
@@ -267,6 +279,7 @@
             roomId: null,
             imageUrl: '',
             isTransferring: false,
+            canvasCtx: null,
 
             setRole(role) {
                 this.role = role;
@@ -285,7 +298,6 @@
             async initialize() {
                 this.roomId = document.getElementById('room-input').value.trim();
                 this.imageUrl = document.getElementById('url-input').value.trim();
-
                 if (!this.roomId) return alert("Enter Room ID");
 
                 document.getElementById('setup-screen').classList.add('hidden');
@@ -302,8 +314,10 @@
             initSender() {
                 const view = document.getElementById('sender-view');
                 const video = document.getElementById('video-feed');
+                const canvas = document.getElementById('debug-canvas');
                 const img = document.getElementById('sender-img');
                 
+                this.canvasCtx = canvas.getContext('2d');
                 view.style.display = 'block';
                 img.src = this.imageUrl;
 
@@ -321,13 +335,19 @@
                 hands.onResults((results) => this.processHands(results));
 
                 const camera = new Camera(video, {
-                    onFrame: async () => await hands.send({image: video}),
+                    onFrame: async () => {
+                        // Sync canvas size to video size
+                        if (canvas.width !== video.videoWidth) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                        }
+                        await hands.send({image: video});
+                    },
                     width: 1280,
                     height: 720
                 });
                 camera.start();
 
-                // Set initial DB state
                 set(ref(db, `aether/${this.roomId}`), {
                     status: 'idle',
                     url: this.imageUrl,
@@ -337,7 +357,6 @@
 
             initReceiver() {
                 document.getElementById('receiver-view').style.display = 'flex';
-                
                 const roomRef = ref(db, `aether/${this.roomId}`);
                 onValue(roomRef, (snapshot) => {
                     const data = snapshot.val();
@@ -348,28 +367,48 @@
             },
 
             processHands(results) {
-                if (this.isTransferring) return;
+                const canvas = document.getElementById('debug-canvas');
+                this.canvasCtx.save();
+                this.canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                     const landmarks = results.multiHandLandmarks[0];
-                    
-                    // FIST DETECTION LOGIC
-                    // Calculate distances of fingertips to the wrist (landmark 0)
-                    // If all major fingers are close to the palm, it's a fist.
-                    const wrist = landmarks[0];
-                    const fingertips = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky
-                    
-                    let totalDistance = 0;
-                    fingertips.forEach(idx => {
-                        const tip = landmarks[idx];
-                        totalDistance += Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-                    });
 
-                    // Threshold for a closed fist (normalized coordinates)
-                    if (totalDistance < 0.6) {
-                        this.triggerSend();
+                    // Visual Debugging: Draw the skeleton
+                    drawConnectors(this.canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
+                    drawLandmarks(this.canvasCtx, landmarks, {color: '#ffffff', radius: 3, lineWidth: 1});
+
+                    if (!this.isTransferring) {
+                        // REQ 1: RELATIVE FIST DETECTION
+                        // Compare Finger Tip distances to PIP joint distances relative to the wrist
+                        const wrist = landmarks[0];
+                        
+                        // Finger Mapping: [Tip, PIP]
+                        const fingerPairs = [
+                            [8, 6],   // Index
+                            [12, 10],  // Middle
+                            [16, 14],  // Ring
+                            [20, 18]   // Pinky
+                        ];
+
+                        const areFingersFolded = fingerPairs.every(([tipIdx, pipIdx]) => {
+                            const tip = landmarks[tipIdx];
+                            const pip = landmarks[pipIdx];
+                            
+                            // Euclidean distance to wrist
+                            const distTipToWrist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                            const distPipToWrist = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+                            
+                            // If tip is closer to wrist than the PIP joint, finger is folded
+                            return distTipToWrist < distPipToWrist;
+                        });
+
+                        if (areFingersFolded) {
+                            this.triggerSend();
+                        }
                     }
                 }
+                this.canvasCtx.restore();
             },
 
             triggerSend() {
@@ -380,14 +419,12 @@
                 img.classList.add('animate-throw');
                 status.innerText = "SIGNAL DISPATCHED";
 
-                // Sync to Firebase
                 set(ref(db, `aether/${this.roomId}`), {
                     status: 'sent',
                     url: this.imageUrl,
                     timestamp: Date.now()
                 });
 
-                // Reset sender view after animation
                 setTimeout(() => {
                     img.classList.remove('animate-throw');
                     status.innerText = "Close fist to send";
@@ -398,14 +435,11 @@
 
             handleIncoming(url) {
                 const container = document.getElementById('receiver-container');
-                container.innerHTML = ''; // Clear
-                
+                container.innerHTML = '';
                 const img = document.createElement('img');
                 img.src = url;
                 img.className = 'transfer-image animate-receive';
                 container.appendChild(img);
-
-                // Haptic feedback if supported
                 if ("vibrate" in navigator) navigator.vibrate([10, 30, 10]);
             }
         };
