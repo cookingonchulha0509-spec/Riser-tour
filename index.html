@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AETHER | Spatial Transfer</title>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #050505;
+            --card-bg: #111111;
+            --accent: #ffffff;
+            --text-main: #e0e0e0;
+            --text-dim: #666666;
+            --border: rgba(255, 255, 255, 0.08);
+            --font-main: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- UI Screens --- */
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            z-index: 100;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+            background: var(--bg);
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .glass-card {
+            width: 100%;
+            max-width: 380px;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1rem;
+            font-weight: 300;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            margin-bottom: 3rem;
+            color: var(--accent);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        button {
+            width: 100%;
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 1.2rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: var(--text-main);
+            color: var(--bg);
+        }
+
+        input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem;
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            outline: none;
+            font-family: inherit;
+            letter-spacing: 0.1em;
+        }
+
+        input:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        /* --- Sender View --- */
+        #sender-view {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            background: #000;
+            display: none;
+        }
+
+        #video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            filter: grayscale(0.5) contrast(1.1) brightness(0.7);
+        }
+
+        #sender-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- Receiver View --- */
+        #receiver-view {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            background: radial-gradient(circle at center, #111 0%, #050505 100%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- The Floating Image --- */
+        .transfer-image {
+            width: 280px;
+            height: 380px;
+            object-fit: cover;
+            border-radius: 2px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.1s ease-out;
+        }
+
+        /* --- Animations --- */
+        @keyframes throwOut {
+            0% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0px); }
+            30% { transform: scale(1.1) translateY(20px); opacity: 1; }
+            100% { transform: scale(0) translateY(-500px); opacity: 0; filter: blur(20px); }
+        }
+
+        @keyframes receiveIn {
+            0% { transform: scale(0.5) translateY(500px); opacity: 0; filter: blur(20px); }
+            60% { transform: scale(1.05) translateY(-20px); opacity: 1; filter: blur(0px); }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .animate-throw { animation: throwOut 0.8s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+        .animate-receive { animation: receiveIn 1.2s cubic-bezier(0.2, 1, 0.3, 1) forwards; }
+
+        .status-indicator {
+            position: fixed;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            letter-spacing: 0.4em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            z-index: 200;
+        }
+
+        .room-tag {
+            position: fixed;
+            top: 2rem;
+            left: 2rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" class="screen">
+        <div class="glass-card">
+            <h1>Aether</h1>
+            
+            <div id="step-1" class="btn-group">
+                <button onclick="app.setRole('send')">Create Stream</button>
+                <button onclick="app.setRole('receive')">Join Stream</button>
+            </div>
+
+            <div id="step-2" class="hidden" style="width: 100%;">
+                <input type="text" id="room-input" placeholder="ROOM ID" maxlength="4">
+                <input type="text" id="url-input" placeholder="IMAGE URL" value="https://images.unsplash.com/photo-1633167606207-d840b5070fc2?q=80&w=1000&auto=format&fit=crop">
+                <button id="start-btn" onclick="app.initialize()">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sender-view">
+        <video id="video-feed" playsinline></video>
+        <div id="sender-overlay">
+            <img id="sender-img" class="transfer-image" src="" alt="Source">
+        </div>
+        <div class="status-indicator" id="sender-status">Close fist to send</div>
+    </div>
+
+    <div id="receiver-view">
+        <div id="receiver-container">
+            <!-- Incoming image appears here -->
+        </div>
+        <div class="status-indicator">Awaiting incoming signal</div>
+    </div>
+
+    <div id="room-display" class="room-tag hidden"></div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        // --- FIREBASE CONFIGURATION ---
+        // Replace these empty strings with your actual Firebase project config
+        const firebaseConfig = {
+  apiKey: "AIzaSyBxc_mSE5Z-5vvLA8_8EOFuueERi8eY63U",
+  authDomain: "tokji-3b05a.firebaseapp.com",
+  databaseURL: "https://tokji-3b05a-default-rtdb.firebaseio.com",
+  projectId: "tokji-3b05a",
+  storageBucket: "tokji-3b05a.firebasestorage.app",
+  messagingSenderId: "743789412997",
+  appId: "1:743789412997:web:be9196bd3dd574ef879fec"
+};
+
+        const fApp = initializeApp(firebaseConfig);
+        const db = getDatabase(fApp);
+
+        const app = {
+            role: null,
+            roomId: null,
+            imageUrl: '',
+            isTransferring: false,
+
+            setRole(role) {
+                this.role = role;
+                document.getElementById('step-1').classList.add('hidden');
+                document.getElementById('step-2').classList.remove('hidden');
+                
+                if (role === 'send') {
+                    const randomId = Math.floor(1000 + Math.random() * 9000);
+                    document.getElementById('room-input').value = randomId;
+                } else {
+                    document.getElementById('url-input').style.display = 'none';
+                    document.getElementById('start-btn').innerText = 'Join Room';
+                }
+            },
+
+            async initialize() {
+                this.roomId = document.getElementById('room-input').value.trim();
+                this.imageUrl = document.getElementById('url-input').value.trim();
+
+                if (!this.roomId) return alert("Enter Room ID");
+
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('room-display').innerText = `ID: ${this.roomId}`;
+                document.getElementById('room-display').classList.remove('hidden');
+
+                if (this.role === 'send') {
+                    this.initSender();
+                } else {
+                    this.initReceiver();
+                }
+            },
+
+            initSender() {
+                const view = document.getElementById('sender-view');
+                const video = document.getElementById('video-feed');
+                const img = document.getElementById('sender-img');
+                
+                view.style.display = 'block';
+                img.src = this.imageUrl;
+
+                const hands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+
+                hands.onResults((results) => this.processHands(results));
+
+                const camera = new Camera(video, {
+                    onFrame: async () => await hands.send({image: video}),
+                    width: 1280,
+                    height: 720
+                });
+                camera.start();
+
+                // Set initial DB state
+                set(ref(db, `aether/${this.roomId}`), {
+                    status: 'idle',
+                    url: this.imageUrl,
+                    timestamp: Date.now()
+                });
+            },
+
+            initReceiver() {
+                document.getElementById('receiver-view').style.display = 'flex';
+                
+                const roomRef = ref(db, `aether/${this.roomId}`);
+                onValue(roomRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.status === 'sent') {
+                        this.handleIncoming(data.url);
+                    }
+                });
+            },
+
+            processHands(results) {
+                if (this.isTransferring) return;
+
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const landmarks = results.multiHandLandmarks[0];
+                    
+                    // FIST DETECTION LOGIC
+                    // Calculate distances of fingertips to the wrist (landmark 0)
+                    // If all major fingers are close to the palm, it's a fist.
+                    const wrist = landmarks[0];
+                    const fingertips = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky
+                    
+                    let totalDistance = 0;
+                    fingertips.forEach(idx => {
+                        const tip = landmarks[idx];
+                        totalDistance += Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                    });
+
+                    // Threshold for a closed fist (normalized coordinates)
+                    if (totalDistance < 0.6) {
+                        this.triggerSend();
+                    }
+                }
+            },
+
+            triggerSend() {
+                this.isTransferring = true;
+                const img = document.getElementById('sender-img');
+                const status = document.getElementById('sender-status');
+
+                img.classList.add('animate-throw');
+                status.innerText = "SIGNAL DISPATCHED";
+
+                // Sync to Firebase
+                set(ref(db, `aether/${this.roomId}`), {
+                    status: 'sent',
+                    url: this.imageUrl,
+                    timestamp: Date.now()
+                });
+
+                // Reset sender view after animation
+                setTimeout(() => {
+                    img.classList.remove('animate-throw');
+                    status.innerText = "Close fist to send";
+                    this.isTransferring = false;
+                    set(ref(db, `aether/${this.roomId}/status`), 'idle');
+                }, 2000);
+            },
+
+            handleIncoming(url) {
+                const container = document.getElementById('receiver-container');
+                container.innerHTML = ''; // Clear
+                
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'transfer-image animate-receive';
+                container.appendChild(img);
+
+                // Haptic feedback if supported
+                if ("vibrate" in navigator) navigator.vibrate([10, 30, 10]);
+            }
+        };
+
+        window.app = app;
+    </script>
+</body>
+</html>
