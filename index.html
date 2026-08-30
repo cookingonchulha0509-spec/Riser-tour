@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Voice Changer (No Air/Noise)</title>
+    <title>Clear & Natural Voice</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         body {
@@ -20,10 +20,10 @@
             background-color: #1e1e1e;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             width: 350px;
         }
+        h2 { text-align: center; margin-top: 0; }
         button {
             background-color: #3b82f6;
             color: white;
@@ -35,56 +35,66 @@
             width: 100%;
             margin-bottom: 20px;
         }
-        #stopBtn {
-            background-color: #ef4444;
-            display: none;
-        }
-        .status {
-            font-size: 14px;
-            color: #10b981; /* Matte green for active status */
-            margin-bottom: 15px;
-            display: none;
-        }
+        #stopBtn { background-color: #ef4444; display: none; }
+        .control-group { margin-bottom: 15px; }
+        label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; color: #9ca3af; }
+        input[type=range] { width: 100%; accent-color: #3b82f6; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Smart Voice Filter</h2>
-    <div id="status" class="status">Listening... (Air/Noise Blocked)</div>
-    <button id="startBtn">Start Smart Mic</button>
+    <h2>Pro Voice Changer</h2>
+    <button id="startBtn">Start Mic</button>
     <button id="stopBtn">Stop Mic</button>
+
+    <div class="control-group">
+        <label>Pitch (Bhaar): <span id="pitchVal">-2</span></label>
+        <input type="range" id="pitchSlider" min="-6" max="0" value="-2" step="0.5">
+    </div>
+    
+    <div class="control-group">
+        <label>Bass (Gehraayi): <span id="bassVal">2</span></label>
+        <input type="range" id="bassSlider" min="0" max="10" value="2" step="1">
+    </div>
+
+    <div class="control-group">
+        <label>Clarity (Saaf Aawaz): <span id="clarityVal">2</span></label>
+        <input type="range" id="claritySlider" min="0" max="10" value="2" step="1">
+    </div>
 </div>
 
 <script>
-    let mic, pitchShift, eq, gate, filter;
+    let mic, gate, compressor, eq, pitchShift;
 
     document.getElementById('startBtn').addEventListener('click', async () => {
         await Tone.start(); 
 
-        mic = new Tone.UserMedia({
-            echoCancellation: true,
-            noiseSuppression: true
+        mic = new Tone.UserMedia({ echoCancellation: true, noiseSuppression: true });
+
+        // 1. GATE: Hawa aur background noise ko block karega bina aawaz kaate
+        gate = new Tone.Gate(-45, 0.05);
+
+        // 2. COMPRESSOR: Aawaz ko fatne se rokega (No dirty/distorted sound)
+        compressor = new Tone.Compressor({ threshold: -24, ratio: 4 });
+
+        // 3. EQ: Bass (bhaar) aur Clarity (saaf shabd) balance karne ke liye
+        eq = new Tone.EQ3({
+            low: parseFloat(document.getElementById('bassSlider').value),
+            mid: 0,
+            high: parseFloat(document.getElementById('claritySlider').value)
         });
 
-        // 1. GATE: Yeh -40 decibel se neeche ki aawaz (hawa, background shor) ko block kar dega
-        gate = new Tone.Gate(-40, 0.1);
-
-        // 2. FILTER: Insaan ki aawaz normally 85Hz se 255Hz ke beech hoti hai. Yeh sirf us frequency ko pass hone dega.
-        filter = new Tone.Filter({
-            type: "bandpass",
-            frequency: 150, 
-            Q: 1.5
+        // 4. PITCH SHIFT: Window size chota kiya hai taaki natural lage
+        pitchShift = new Tone.PitchShift({
+            pitch: parseFloat(document.getElementById('pitchSlider').value),
+            windowSize: 0.05
         });
 
-        // 3. Purana Pitch aur EQ effect
-        pitchShift = new Tone.PitchShift({ pitch: -4 });
-        eq = new Tone.EQ3({ low: 5, mid: 0, high: -2 });
-
-        // Audio Connection: Mic -> Gate (blocks air) -> Filter (human range) -> EQ -> Pitch
+        // AUDIO CHAIN
         mic.connect(gate);
-        gate.connect(filter);
-        filter.connect(eq);
+        gate.connect(compressor);
+        compressor.connect(eq);
         eq.connect(pitchShift);
         pitchShift.toDestination();
 
@@ -92,23 +102,34 @@
             await mic.open();
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'block';
-            document.getElementById('status').style.display = 'block';
         } catch (e) {
-            alert("Mic error! Localhost ya HTTPS zaroori hai.");
+            alert("Mic Error! Please allow mic access.");
         }
     });
 
     document.getElementById('stopBtn').addEventListener('click', () => {
         if (mic) {
             mic.close();
-            gate.dispose();
-            filter.dispose();
-            pitchShift.dispose();
-            eq.dispose();
+            gate.dispose(); compressor.dispose(); eq.dispose(); pitchShift.dispose();
         }
         document.getElementById('startBtn').style.display = 'block';
         document.getElementById('stopBtn').style.display = 'none';
-        document.getElementById('status').style.display = 'none';
+    });
+
+    // Live Slider Updates
+    document.getElementById('pitchSlider').addEventListener('input', (e) => {
+        document.getElementById('pitchVal').innerText = e.target.value;
+        if (pitchShift) pitchShift.pitch = parseFloat(e.target.value);
+    });
+
+    document.getElementById('bassSlider').addEventListener('input', (e) => {
+        document.getElementById('bassVal').innerText = e.target.value;
+        if (eq) eq.low.value = parseFloat(e.target.value);
+    });
+
+    document.getElementById('claritySlider').addEventListener('input', (e) => {
+        document.getElementById('clarityVal').innerText = e.target.value;
+        if (eq) eq.high.value = parseFloat(e.target.value);
     });
 </script>
 </body>
