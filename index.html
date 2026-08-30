@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Natural Voice Changer</title>
+    <!-- Tone.js CDN for Real-time Audio Processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        /* Clean, matte dark theme UI */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 350px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #ffffff;
+        }
+        button {
+            background-color: #3b82f6; /* Solid matte blue */
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        #stopBtn {
+            background-color: #ef4444; /* Solid matte red */
+            display: none;
+        }
+        #stopBtn:hover {
+            background-color: #dc2626;
+        }
+        .controls {
+            text-align: left;
+            margin-top: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+        input[type=range] {
+            width: 100%;
+            margin-bottom: 20px;
+            accent-color: #3b82f6;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Live Voice Changer</h2>
+    <button id="startBtn">Start Microphone</button>
+    <button id="stopBtn">Stop Microphone</button>
+
+    <div class="controls">
+        <label for="pitchSlider">Pitch (Aawaz ka Bhaar): <span id="pitchVal">-4</span></label>
+        <input type="range" id="pitchSlider" min="-12" max="0" value="-4" step="1">
+
+        <label for="eqSlider">Chest Depth (Gehraayi): <span id="eqVal">5</span></label>
+        <input type="range" id="eqSlider" min="0" max="15" value="5" step="1">
+    </div>
+
+    <div class="info-text">
+        * Built-in Echo Cancellation ON hai. Phir bhi best natural experience ke liye earphones lagana zaroori hai taaki aawaz wapas mic mein na jaye.
+    </div>
+</div>
+
+<script>
+    let mic;
+    let pitchShift;
+    let eq;
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const pitchSlider = document.getElementById('pitchSlider');
+    const pitchVal = document.getElementById('pitchVal');
+    const eqSlider = document.getElementById('eqSlider');
+    const eqVal = document.getElementById('eqVal');
+
+    startBtn.addEventListener('click', async () => {
+        // Browser ko audio process karne ki permission dena
+        await Tone.start(); 
+
+        // 1. Microphone Setup (Echo Cancellation ke sath)
+        mic = new Tone.UserMedia({
+            echoCancellation: true,  // Yahi line aapko feedback loop se bachati hai
+            noiseSuppression: true,
+            autoGainControl: false
+        });
+
+        // 2. Pitch Shifter Node (Live aawaz ko bhaari karne ke liye)
+        pitchShift = new Tone.PitchShift({
+            pitch: parseInt(pitchSlider.value), // Negative value aawaz bhaari karti hai
+            windowSize: 0.1,
+            delayTime: 0,
+            feedback: 0
+        });
+
+        // 3. EQ Node (Natural feel lane ke liye chest frequency ko badhana)
+        eq = new Tone.EQ3({
+            low: parseInt(eqSlider.value), // Bass badhayega taaki aawaz real lage
+            mid: 0,
+            high: -2 // High frequencies thodi kam ki hain digital feel hatane ke liye
+        });
+
+        // Audio Chain: Mic -> EQ -> Pitch Shift -> Speaker
+        mic.connect(eq);
+        eq.connect(pitchShift);
+        pitchShift.toDestination();
+
+        try {
+            await mic.open();
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+        } catch (e) {
+            alert("Mic access deny ho gaya ya error aaya. HTTPS ya Localhost par run karein.");
+        }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        if (mic) {
+            mic.close();
+            pitchShift.dispose();
+            eq.dispose();
+        }
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
+    });
+
+    // Real-time Slider Updates
+    pitchSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        pitchVal.innerText = val;
+        if (pitchShift) pitchShift.pitch = parseInt(val);
+    });
+
+    eqSlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        eqVal.innerText = val;
+        if (eq) eq.low.value = parseInt(val);
+    });
+</script>
+</body>
+</html>
