@@ -126,7 +126,6 @@
         .badge-rejected { background: #FEF2F2; color: #DC2626; }
         .badge-info { background: #EFF6FF; color: var(--accent); }
         .badge-warning { background: #FEF2F2; color: #B91C1C; } 
-        /* Premium Tagda Time Badge */
         .est-time-badge { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
 
         /* === DASHBOARD STATS === */
@@ -155,12 +154,10 @@
         /* === TASK BUILDER & STAGES === */
         .builder-section-title { font-weight: 700; font-size: 15px; color: var(--text-main); margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         
-        /* Rules List */
         .rules-list-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
         .rule-row { display: flex; gap: 8px; align-items: center; }
         .rule-row input { flex: 1; }
 
-        /* Stage Builder */
         .stage-builder-header { background: #F1F5F9; padding: 12px 16px; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border: 1px solid var(--border); }
         .stage-item { background: #F8FAFC; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 12px; position: relative; }
         .stage-header { display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center; }
@@ -183,7 +180,6 @@
         .empty-state i { font-size: 40px; margin-bottom: 16px; opacity: 0.4; }
         .empty-state h3 { font-size: 16px; color: var(--text-main); font-weight: 600; margin-bottom: 8px; }
 
-        /* Loader Sentinel for infinite scroll */
         .lb-sentinel { text-align: center; color: var(--text-muted); padding: 16px; font-size: 13px; font-weight: 600; }
     </style>
 </head>
@@ -368,7 +364,6 @@
             <div class="card">
                 <div class="card-header"><div class="card-title">Top Earners (Lifetime)</div></div>
                 <div class="data-list" id="leaderboard-list"></div>
-                <!-- Sentinel for IntersectionObserver Infinite Scroll -->
                 <div id="lb-sentinel" class="lb-sentinel"></div>
             </div>
         </div>
@@ -444,7 +439,7 @@
     </div>
 </div>
 
-<!-- Category Modal (Updated with Image Upload) -->
+<!-- Category Modal -->
 <div class="modal-overlay" id="category-modal">
     <div class="modal-content" style="max-width: 450px;">
         <div class="modal-header">
@@ -458,7 +453,6 @@
                 <input type="text" id="cat-name" required>
             </div>
             
-            <!-- Category Image Uploader -->
             <div class="input-group" style="background:#F8FAFC; padding:12px; border:1px dashed var(--border); border-radius:var(--radius-md);">
                 <label>Category Image (Upload to Supabase)</label>
                 <input type="file" id="cat-img-file" accept="image/*" onchange="uploadImageHandler(this, 'cat-progress', 'cat-img-url', 'cat-preview')">
@@ -486,7 +480,7 @@
     </div>
 </div>
 
-<!-- Task & Stage Builder Modal (Updated Layout & Uploader) -->
+<!-- Task & Stage Builder Modal -->
 <div class="modal-overlay" id="task-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -522,7 +516,6 @@
                     <textarea id="task-desc" rows="2" placeholder="Complete the task and earn..." required></textarea>
                 </div>
 
-                <!-- Supabase File Upload or Direct URL for Tasks (Moved outside grid so layout doesn't break) -->
                 <div style="background:#F8FAFC; padding:16px; border:1px dashed var(--border); border-radius:var(--radius-md); margin-bottom:16px;">
                     <div class="input-group" style="margin-bottom:10px;">
                         <label>Task Icon (Upload to Supabase)</label>
@@ -546,9 +539,8 @@
                         <label>Default Destination Link</label>
                         <input type="url" id="task-link" placeholder="App or website URL">
                     </div>
-                    <!-- PREMIUM FIELD FOR ESTIMATED TIME -->
                     <div class="input-group">
-                        <label>Estimated Time <span style="color:var(--danger); font-size:11px;">(New)</span></label>
+                        <label>Estimated Time</label>
                         <input type="text" id="task-est-time" placeholder="e.g. 5 Min">
                     </div>
                 </div>
@@ -558,9 +550,7 @@
                     <span>Task Rules</span>
                     <button type="button" class="btn btn-outline" style="padding:4px 10px; font-size:12px;" onclick="addRuleUI()">+ Add Rule</button>
                 </div>
-                <div class="rules-list-container" id="rules-container">
-                    <!-- Dynamic Rules injected here -->
-                </div>
+                <div class="rules-list-container" id="rules-container"></div>
 
                 <!-- REFERRAL CONFIGURATION -->
                 <div class="builder-section-title">Referral Configuration</div>
@@ -574,7 +564,7 @@
                         <input type="text" id="task-ref-code" placeholder="e.g. EARNPRO50">
                     </div>
                     <div class="input-group" style="margin-bottom:0;">
-                        <label>Referral Instructions (Optional)</label>
+                        <label>Referral Instructions</label>
                         <input type="text" id="task-ref-inst" placeholder="e.g. Enter this code during signup">
                     </div>
                 </div>
@@ -674,7 +664,7 @@
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_DIM = 800; // Optimize for Mobile Apps
+                const MAX_DIM = 800;
                 let width = img.width, height = img.height;
                 if (width > height) {
                     if (width > MAX_DIM) { height *= MAX_DIM / width; width = MAX_DIM; }
@@ -688,7 +678,7 @@
                     if(blob) {
                         callback(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
                     } else { callback(file); }
-                }, 'image/jpeg', 0.7); // 70% Quality Compression
+                }, 'image/jpeg', 0.7);
             };
             img.src = e.target.result;
         };
@@ -713,7 +703,6 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', url, true);
-            // Supabase REST Auth setup
             xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_KEY}`);
             xhr.setRequestHeader('apikey', SUPABASE_KEY);
 
@@ -740,7 +729,7 @@
                     track.style.display = 'none';
                     showToast('Upload failed. Database permissions denied.', true);
                 }
-                inputEl.value = ''; // Reset input
+                inputEl.value = '';
             };
 
             xhr.onerror = () => {
@@ -765,7 +754,6 @@
     let currentActionId = null; 
     let currentActionData = null;
     
-    // Leaderboard Infinite Scroll State Variables
     let sortedLeaderboard = [];
     let lbVisibleLimit = 25;
 
@@ -812,7 +800,7 @@
         }
         
         if(tabId === 'leaderboard') {
-            lbVisibleLimit = 25; // Reset limit when tab opened
+            lbVisibleLimit = 25;
             renderLeaderboard();
         }
     }
@@ -868,15 +856,13 @@
     }
 
     /* =========================================
-       REAL-TIME LISTENERS & INFINITE SCROLL INIT
+       REAL-TIME LISTENERS
        ========================================= */
     function initDashboardListeners() {
         db.ref('users').on('value', snap => {
             globalUsers = snap.val() || {};
             document.getElementById('stat-total-users').innerText = Object.keys(globalUsers).length.toLocaleString();
             renderUsers();
-            
-            // Pre-calculate leaderboard arrays on DB update
             calculateLeaderboardData();
             if(document.getElementById('tab-leaderboard').classList.contains('active')) renderLeaderboard();
         });
@@ -924,12 +910,11 @@
             document.getElementById('set-terms').value = globalSettings.termsConditions || '';
         });
         
-        // Initialize IntersectionObserver for Leaderboard
         initLeaderboardScrollObserver();
     }
 
     /* =========================================
-       USER MANAGEMENT & ADJUSTMENTS
+       USER MANAGEMENT
        ========================================= */
     function renderUsers() {
         const list = document.getElementById('users-list');
@@ -1006,7 +991,7 @@
         walletRef.transaction(current => {
             let bal = current || 0;
             if(type === 'deduct') {
-                if(bal < amt) return; // Will abort transaction
+                if(bal < amt) return;
                 return bal - amt;
             }
             return bal + amt;
@@ -1015,7 +1000,6 @@
             if(err) return showToast(getFriendlyError(err), true);
             if(!committed) return showToast('Insufficient funds for deduction.', true);
             
-            // Log history
             db.ref(`users/${uid}/history`).push({
                 title: `Admin Adjust: ${reason}`,
                 amount: amt,
@@ -1031,7 +1015,7 @@
     }
 
     /* =========================================
-       DYNAMIC CATEGORIES (Now with Image UI)
+       CATEGORIES
        ========================================= */
     function renderCategories() {
         const list = document.getElementById('categories-list');
@@ -1102,7 +1086,7 @@
     }
 
     /* =========================================
-       TASK MANAGER & BUILDER 
+       TASK MANAGER & BUILDER
        ========================================= */
     function renderTasks() {
         const list = document.getElementById('tasks-list');
@@ -1120,7 +1104,6 @@
                 totalPossible = t.reward || 0;
             }
 
-            // Beautiful Tagda Time Badge matching User Panel
             const estTimeText = t.estTime ? escapeHTML(t.estTime) : '2 Min';
             const estTimeBadgeHtml = `<span class="badge est-time-badge"><i class="fa-solid fa-stopwatch"></i> ${estTimeText}</span>`;
 
@@ -1143,7 +1126,6 @@
         });
     }
 
-    // RULES LOGIC
     function addRuleUI(val = '') {
         const container = document.getElementById('rules-container');
         const id = Date.now() + Math.random().toString(36).substr(2, 9);
@@ -1156,7 +1138,6 @@
         container.insertAdjacentHTML('beforeend', html);
     }
 
-    // REFERRAL UI
     function toggleReferralUI() {
         const isChecked = document.getElementById('task-req-ref').checked;
         document.getElementById('referral-ui-box').style.display = isChecked ? 'block' : 'none';
@@ -1166,7 +1147,6 @@
         document.getElementById('task-form').reset();
         document.getElementById('task-id').value = '';
         
-        // Reset storage uploader
         document.getElementById('task-icon').value = '';
         document.getElementById('task-preview').style.display = 'none';
         
@@ -1183,11 +1163,10 @@
         document.getElementById('display-total-reward').innerText = '0 Coins';
         addStageUI('Download App', 'Click to visit link', 'Follow instructions on screen', 10);
         
-        document.getElementById('btn-delete-task').style.display = 'none'; // Hide delete for new
+        document.getElementById('btn-delete-task').style.display = 'none';
         openModal('task-modal');
     }
 
-    // STAGES UI
     function addStageUI(title = '', desc = '', rules = '', reward = '', link = '') {
         const container = document.getElementById('stages-container');
         const id = Date.now() + Math.floor(Math.random()*1000);
@@ -1256,7 +1235,6 @@
         document.getElementById('task-category').value = t.category || '';
         document.getElementById('task-desc').value = t.desc || '';
         
-        // Supabase Image mapping
         const imgUrl = t.img || t.icon || '';
         document.getElementById('task-icon').value = imgUrl;
         const preview = document.getElementById('task-preview');
@@ -1264,11 +1242,8 @@
         
         document.getElementById('task-link').value = t.link || '';
         document.getElementById('task-status').value = t.status || 'active';
-        
-        // Load Premium Field
         document.getElementById('task-est-time').value = t.estTime || '';
 
-        // Load Rules
         const rCont = document.getElementById('rules-container');
         rCont.innerHTML = '';
         if(t.rules && Array.isArray(t.rules) && t.rules.length > 0) {
@@ -1277,7 +1252,6 @@
             addRuleUI('Follow the steps carefully and submit your progress.');
         }
 
-        // Load Referral
         if (t.referralCode) {
             document.getElementById('task-req-ref').checked = true;
             document.getElementById('task-ref-code').value = t.referralCode;
@@ -1289,7 +1263,6 @@
         }
         toggleReferralUI();
 
-        // Load Stages
         const sCont = document.getElementById('stages-container');
         sCont.innerHTML = '';
         if(t.stages && t.stages.length > 0) {
@@ -1305,7 +1278,6 @@
     function saveTask() {
         const taskId = document.getElementById('task-id').value || db.ref().child('tasks').push().key;
         
-        // Collect Stages
         const stages = [];
         document.querySelectorAll('.stage-item').forEach(item => {
             stages.push({
@@ -1319,13 +1291,11 @@
 
         if(stages.length === 0) return showToast('Minimum 1 stage required.', true);
 
-        // Collect Rules
         const rules = [];
         document.querySelectorAll('.rule-input').forEach(inp => {
             if(inp.value.trim()) rules.push(inp.value.trim());
         });
 
-        // Collect Referral
         let refCode = null, refInst = null;
         if (document.getElementById('task-req-ref').checked) {
             refCode = document.getElementById('task-ref-code').value.trim();
@@ -1341,14 +1311,14 @@
             category: document.getElementById('task-category').value,
             desc: document.getElementById('task-desc').value.trim(),
             img: document.getElementById('task-icon').value.trim(),
-            icon: document.getElementById('task-icon').value.trim(), // compat
+            icon: document.getElementById('task-icon').value.trim(),
             link: document.getElementById('task-link').value.trim(),
             estTime: estTimeValue, 
             status: document.getElementById('task-status').value,
             rules: rules,
             referralCode: refCode,
             referralInstructions: refInst,
-            reward: totalReward, // compat
+            reward: totalReward,
             stages: stages,
             timestamp: firebase.database.ServerValue.TIMESTAMP
         };
@@ -1366,7 +1336,6 @@
         const taskId = document.getElementById('task-id').value;
         if(!taskId) return;
 
-        // Check if there are active pending submissions for this task
         let hasPending = false;
         Object.values(globalSubmissions).forEach(sub => {
             if(sub.taskId === taskId) hasPending = true;
@@ -1389,7 +1358,7 @@
     }
 
     /* =========================================
-       SUBMISSION VERIFICATION
+       SUBMISSION VERIFICATION (FIXED UNLOCKED BUTTONS)
        ========================================= */
     function renderSubmissions() {
         const list = document.getElementById('submissions-list');
@@ -1403,7 +1372,7 @@
                 <div class="data-item">
                     <div class="stat-icon yellow" style="border-radius: var(--radius-md); width: 48px; height: 48px; font-size: 18px; flex-shrink:0;"><i class="fa-solid fa-clock"></i></div>
                     <div class="info">
-                        <div class="title">${escapeHTML(req.taskName)} <span class="badge badge-info" style="margin-left:6px;">Stage ${req.stageIndex !== undefined ? req.stageIndex + 1 : 1}</span></div>
+                        <div class="title">${escapeHTML(req.taskName)} <span class="badge badge-info" style="margin-left:6px;">Stage ${req.stageIndex !== undefined ? Number(req.stageIndex) + 1 : 1}</span></div>
                         <div class="sub">User ID: ${req.uid.substring(0,8)}...</div>
                     </div>
                     <div class="actions">
@@ -1416,18 +1385,17 @@
 
     function openVerifyModal(reqId) {
         currentActionId = reqId;
-        currentActionData = globalSubmissions[reqId];
+        currentActionData = globalSubmissions[reqId] ? { ...globalSubmissions[reqId] } : null;
+        if (!currentActionData) return;
         const req = currentActionData;
         const task = globalTasks[req.taskId] || {};
         
-        // Lookup User Task Participation Info
         const userTask = (globalUsers[req.uid] && globalUsers[req.uid].tasks) ? globalUsers[req.uid].tasks[req.taskId] : null;
         const joinName = (userTask && userTask.joinName) ? userTask.joinName : req.name;
         const joinMobile = (userTask && userTask.joinMobile) ? userTask.joinMobile : req.mobile;
 
-        // Determine exact reward
         const rewardAmount = req.expectedReward !== undefined ? req.expectedReward : (task.reward || 0);
-        const stageNum = req.stageIndex !== undefined ? req.stageIndex + 1 : 1;
+        const stageNum = req.stageIndex !== undefined ? Number(req.stageIndex) + 1 : 1;
 
         document.getElementById('verify-body').innerHTML = `
             <div style="background: var(--background); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-bottom: 20px;">
@@ -1448,7 +1416,10 @@
             <div style="font-size: 12px; color: var(--text-muted); line-height:1.4;">Approving will credit the wallet and unlock the next stage. Rejecting allows the user to retry.</div>
         `;
 
-        document.getElementById('btn-approve-sub').onclick = () => processSubmission('approved');
+        const btnApproveSub = document.getElementById('btn-approve-sub');
+        btnApproveSub.disabled = false;
+        btnApproveSub.innerText = 'Approve & Credit Stage';
+        btnApproveSub.onclick = () => processSubmission('approved');
         openModal('verify-modal');
     }
 
@@ -1458,14 +1429,16 @@
     }
 
     function processSubmission(status, reason = '') {
+        if (!currentActionId || !currentActionData) return;
         const reqId = currentActionId;
-        const req = currentActionData;
-        const uid = req.uid;
-        const taskId = req.taskId;
+        const reqSnapshot = { ...currentActionData };
+        const uid = reqSnapshot.uid;
+        const taskId = reqSnapshot.taskId;
         const reward = Number(document.getElementById('verify-reward').value) || 0;
 
         const btn = document.getElementById('btn-approve-sub');
         btn.disabled = true;
+        btn.innerText = 'Processing...';
 
         if (status === 'approved') {
             const walletRef = db.ref(`users/${uid}/wallet/balance`);
@@ -1473,32 +1446,37 @@
                 if (error || !committed) {
                     showToast('Transaction failed. Database issue.', true);
                     btn.disabled = false;
+                    btn.innerText = 'Approve & Credit Stage';
                 } else {
-                    finalizeSubmissionUpdates(reqId, uid, taskId, status, reward, reason, req.stageIndex);
+                    finalizeSubmissionUpdates(reqId, uid, taskId, status, reward, reason, reqSnapshot.stageIndex, reqSnapshot.taskName);
                 }
             });
         } else {
-            finalizeSubmissionUpdates(reqId, uid, taskId, status, 0, reason, req.stageIndex);
+            finalizeSubmissionUpdates(reqId, uid, taskId, status, 0, reason, reqSnapshot.stageIndex, reqSnapshot.taskName);
         }
     }
 
-    function finalizeSubmissionUpdates(reqId, uid, taskId, status, reward, reason, stageIndex) {
+    function finalizeSubmissionUpdates(reqId, uid, taskId, status, reward, reason, stageIndex, taskName) {
         const updates = {};
+        const safeStageIdx = (stageIndex !== undefined && stageIndex !== null) ? Number(stageIndex) : 0;
         
         updates[`pendingRequests/${reqId}/status`] = status;
         updates[`pendingRequests/${reqId}/processedBy`] = currentAdmin.uid;
         updates[`pendingRequests/${reqId}/processedAt`] = firebase.database.ServerValue.TIMESTAMP;
         
         if(status === 'approved') {
-            const nextStage = (stageIndex !== undefined) ? stageIndex + 1 : 1;
+            const nextStage = safeStageIdx + 1;
             updates[`users/${uid}/tasks/${taskId}/currentStage`] = nextStage;
             updates[`users/${uid}/tasks/${taskId}/stageStatus`] = 'approved';
             updates[`users/${uid}/tasks/${taskId}/status`] = 'approved'; 
             
             const historyId = db.ref().child(`users/${uid}/history`).push().key;
             updates[`users/${uid}/history/${historyId}`] = {
-                title: `${currentActionData.taskName} (Stage ${stageIndex !== undefined ? stageIndex + 1 : 1})`,
-                amount: reward, type: 'earn', status: 'approved', timestamp: firebase.database.ServerValue.TIMESTAMP
+                title: `${taskName || 'Task Reward'} (Stage ${safeStageIdx + 1})`,
+                amount: reward,
+                type: 'earn',
+                status: 'approved',
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             };
         } else {
             updates[`users/${uid}/tasks/${taskId}/stageStatus`] = 'rejected';
@@ -1506,17 +1484,21 @@
             if(reason) updates[`users/${uid}/tasks/${taskId}/reason`] = reason;
         }
 
+        const btn = document.getElementById('btn-approve-sub');
         db.ref().update(updates).then(() => {
+            btn.disabled = false;
+            btn.innerText = 'Approve & Credit Stage';
             closeModal('verify-modal');
             showToast(`Stage ${status.toUpperCase()} successfully.`);
         }).catch(err => {
             showToast(getFriendlyError(err), true);
-            document.getElementById('btn-approve-sub').disabled = false;
+            btn.disabled = false;
+            btn.innerText = 'Approve & Credit Stage';
         });
     }
 
     /* =========================================
-       WITHDRAWAL MANAGEMENT (Max ₹30 enforced)
+       WITHDRAWALS (FIXED UNLOCKED BUTTONS)
        ========================================= */
     function renderWithdrawals() {
         const list = document.getElementById('withdrawals-list');
@@ -1526,8 +1508,6 @@
 
         keys.forEach(reqId => {
             const req = globalWithdrawals[reqId];
-            
-            // Highlight violations of the max ₹30 limit
             const isViolation = req.amount > 3000;
             const styleWarning = isViolation ? `border-left: 4px solid var(--danger);` : ``;
 
@@ -1548,7 +1528,8 @@
 
     function openWithdrawModal(reqId) {
         currentActionId = reqId;
-        currentActionData = globalWithdrawals[reqId];
+        currentActionData = globalWithdrawals[reqId] ? { ...globalWithdrawals[reqId] } : null;
+        if (!currentActionData) return;
         const req = currentActionData;
 
         const isViolation = req.amount > 3000;
@@ -1574,11 +1555,11 @@
         `;
 
         const btnApprove = document.getElementById('btn-approve-wd');
+        btnApprove.disabled = false;
         if(isViolation) {
             btnApprove.disabled = true;
             btnApprove.innerText = 'Approval Blocked (Over Limit)';
         } else {
-            btnApprove.disabled = false;
             btnApprove.innerText = 'Confirm Payment Sent';
             btnApprove.onclick = () => processWithdrawal('approved');
         }
@@ -1590,33 +1571,36 @@
     }
 
     function processWithdrawal(status) {
+        if (!currentActionId || !currentActionData) return;
         const reqId = currentActionId;
-        const req = currentActionData;
-        const uid = req.uid;
+        const reqSnapshot = { ...currentActionData };
+        const uid = reqSnapshot.uid;
         
-        if (status === 'approved' && req.amount > 3000) {
+        if (status === 'approved' && reqSnapshot.amount > 3000) {
             return showToast("Cannot approve amounts over the maximum limit of ₹30.", true);
         }
 
         const btn = document.getElementById('btn-approve-wd');
         btn.disabled = true;
+        btn.innerText = 'Processing...';
 
         if (status === 'rejected') {
             const walletRef = db.ref(`users/${uid}/wallet/balance`);
-            walletRef.transaction(current => (current || 0) + req.amount, (error, committed) => {
+            walletRef.transaction(current => (current || 0) + Number(reqSnapshot.amount), (error, committed) => {
                 if (error || !committed) {
                     showToast('Refund Transaction failed. Database error.', true);
                     btn.disabled = false;
+                    btn.innerText = 'Confirm Payment Sent';
                 } else {
-                    finalizeWithdrawUpdates(reqId, uid, status, 'Refunded');
+                    finalizeWithdrawUpdates(reqId, uid, status, 'Refunded', reqSnapshot.amount);
                 }
             });
         } else {
-            finalizeWithdrawUpdates(reqId, uid, status, 'Settled');
+            finalizeWithdrawUpdates(reqId, uid, status, 'Settled', reqSnapshot.amount);
         }
     }
 
-    function finalizeWithdrawUpdates(reqId, uid, status, tag) {
+    function finalizeWithdrawUpdates(reqId, uid, status, tag, reqAmount) {
         const updates = {};
         updates[`withdrawRequests/${reqId}/status`] = status;
         updates[`withdrawRequests/${reqId}/processedBy`] = currentAdmin.uid;
@@ -1625,23 +1609,27 @@
         const historyId = db.ref().child(`users/${uid}/history`).push().key;
         updates[`users/${uid}/history/${historyId}`] = {
             title: `Withdrawal ${tag}`,
-            amount: status === 'rejected' ? currentActionData.amount : 0, 
+            amount: status === 'rejected' ? Number(reqAmount) : 0, 
             type: status === 'rejected' ? 'earn' : 'info',
             status: status,
             timestamp: firebase.database.ServerValue.TIMESTAMP
         };
 
+        const btn = document.getElementById('btn-approve-wd');
         db.ref().update(updates).then(() => {
+            btn.disabled = false;
+            btn.innerText = 'Confirm Payment Sent';
             closeModal('withdraw-modal');
             showToast(`Withdrawal ${status.toUpperCase()}`);
         }).catch(err => {
             showToast(getFriendlyError(err), true);
-            document.getElementById('btn-approve-wd').disabled = false;
+            btn.disabled = false;
+            btn.innerText = 'Confirm Payment Sent';
         });
     }
 
     /* =========================================
-       LEADERBOARD (Infinite Scroll implementation)
+       LEADERBOARD (Infinite Scroll)
        ========================================= */
     function calculateLeaderboardData() {
         let usersArr = [];
@@ -1685,7 +1673,6 @@
             `;
         });
         
-        // Setup text if there's more users to load
         if (lbVisibleLimit < sortedLeaderboard.length) {
             sentinel.innerText = "Scroll to load more users...";
             sentinel.style.display = 'block';
@@ -1698,7 +1685,7 @@
     function initLeaderboardScrollObserver() {
         if (!('IntersectionObserver' in window)) return;
         const sentinel = document.getElementById('lb-sentinel');
-        const scrollArea = document.getElementById('main-scroll-area'); // Observation root 
+        const scrollArea = document.getElementById('main-scroll-area');
 
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
